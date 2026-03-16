@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_skipmoney"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_skipmoney"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SkipMoney">
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="@string/admob_app_id" />
+
+        <activity
+            android:name="com.skipmoney.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SkipMoney.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name="com.skipmoney.notifications.DailyReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.skipmoney.notifications.ReminderRescheduleReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.skipmoney.notifications.DebugReminderReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.skipmoney.action.DEBUG_SCHEDULE_10S" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.skipmoney.widget.SkipMoneyWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/skip_money_widget_info" />
+        </receiver>
+    </application>
+
+</manifest>
