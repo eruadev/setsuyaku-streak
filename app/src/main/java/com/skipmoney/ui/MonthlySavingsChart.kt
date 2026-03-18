@@ -22,7 +22,6 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.skipmoney.R
 import java.time.LocalDate
@@ -36,7 +35,6 @@ fun MonthlySavingsChart(
     modifier: Modifier = Modifier,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary.toArgb()
-    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
 
     Surface(
@@ -122,15 +120,8 @@ fun MonthlySavingsChart(
                     }
                     val dataSet = BarDataSet(entries, title).apply {
                         color = primaryColor
-                        valueTextColor = textColor
-                        valueTextSize = 10f
+                        setDrawValues(false)
                         highLightAlpha = 0
-                        valueFormatter = object : ValueFormatter() {
-                            override fun getBarLabel(barEntry: BarEntry?): String {
-                                val value = barEntry?.y ?: return ""
-                                return if (value <= 0f) "" else "¥${value.toInt()}"
-                            }
-                        }
                     }
 
                     chart.xAxis.valueFormatter = object : ValueFormatter() {

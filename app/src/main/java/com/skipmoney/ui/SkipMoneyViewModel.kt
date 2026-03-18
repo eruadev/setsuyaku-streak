@@ -55,7 +55,6 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     )
     private val reminderSettingsRepository = ReminderSettingsRepository(appContext)
     private val moneyFormatter = MoneyFormatter.forJapaneseYen()
-    private val monthFormatter = DateTimeFormatter.ofPattern("yyyy年M月", Locale.JAPAN)
     val messages = MutableSharedFlow<String>(
         replay = 0,
         extraBufferCapacity = 1,
@@ -95,7 +94,7 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
             )
             val monthlyChartDayLabels = (1..today.lengthOfMonth()).map(Int::toString)
             logChartComputation(
-                month = today.format(monthFormatter),
+                month = today.format(monthFormatter()),
                 currentMonthDailySavedCents = data.currentMonthDailySavedCents,
                 monthlyChartValues = monthlyChartValues,
             )
@@ -114,7 +113,7 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
                 currentMonthSaved = moneyFormatter.formatMinorUnits(
                     data.currentMonthDailySavedCents.values.sum(),
                 ),
-                calendarMonthLabel = today.format(monthFormatter),
+                calendarMonthLabel = today.format(monthFormatter()),
                 calendarMarkedDays = data.savingDates
                     .filter { it.year == today.year && it.month == today.month }
                     .mapTo(linkedSetOf()) { it.dayOfMonth },
@@ -153,22 +152,25 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
             )
             refreshUiState()
             SkipMoneyWidgetUpdater.updateAll(appContext)
-            if (result.shouldIncrementStreak) {
-                val nextStreak = uiState.value.currentStreakDays + 1
-                val celebration = buildList {
+            val snackbarMessage = if (result.streakBranch == "same_day") {
+                appContext.getString(R.string.streak_already_counted)
+            } else {
+                buildList {
                     add(
                         appContext.getString(
                             R.string.celebration_streak_up,
                             appContext.getString(R.string.flame_emoji),
-                            nextStreak,
+                            result.currentStreakDays,
                         ),
                     )
-                    milestoneMessageFor(nextStreak)?.let(::add)
+                    milestoneMessageFor(result.currentStreakDays)?.let(::add)
                 }.joinToString(separator = "\n")
-                messages.emit(celebration)
-            } else {
-                messages.emit(appContext.getString(R.string.streak_already_counted))
             }
+            Log.d(
+                TAG,
+                "recordSkippedPurchaseSnackbar: branch=${result.streakBranch}, savedStreak=${result.currentStreakDays}, snackbarValue=${result.currentStreakDays}",
+            )
+            messages.emit(snackbarMessage)
         }
     }
 
@@ -276,7 +278,13 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     private fun formatNotificationTime(
         hour: Int,
         minute: Int,
-    ): String = String.format(Locale.JAPAN, "%02d:%02d", hour, minute)
+    ): String = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+
+    private fun monthFormatter(): DateTimeFormatter =
+        DateTimeFormatter.ofPattern(
+            if (Locale.getDefault().language == Locale.JAPANESE.language) "yyyy年M月" else "MMM yyyy",
+            Locale.getDefault(),
+        )
 
     private fun buildMonthlyChartValues(
         currentMonthDailySavedCents: Map<Int, Long>,

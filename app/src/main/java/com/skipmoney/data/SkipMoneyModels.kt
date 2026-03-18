@@ -20,6 +20,8 @@ data class SkipMoneyData(
 
 data class RecordSkippedPurchaseResult(
     val shouldIncrementStreak: Boolean,
+    val currentStreakDays: Int,
+    val streakBranch: String,
     val insertedId: Long,
     val amountCents: Long,
     val createdAt: Long,

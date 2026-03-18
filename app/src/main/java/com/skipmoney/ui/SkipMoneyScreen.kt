@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -42,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -64,6 +66,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -79,9 +82,20 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val moneyFormatter = MoneyFormatter.forJapaneseYen()
-private val recentPurchaseDateFormatter = DateTimeFormatter.ofPattern("MM/dd", Locale.JAPAN)
-private val calendarMonthFormatter = DateTimeFormatter.ofPattern("yyyy年M月", Locale.JAPAN)
-private val monthlyChartTitleFormatter = DateTimeFormatter.ofPattern("yyyy年M月", Locale.JAPAN)
+
+private fun currentLocale(): Locale = Locale.getDefault()
+
+private fun recentPurchaseDateFormatter(): DateTimeFormatter =
+    DateTimeFormatter.ofPattern(
+        if (currentLocale().language == Locale.JAPANESE.language) "MM/dd" else "M/d",
+        currentLocale(),
+    )
+
+private fun monthFormatter(): DateTimeFormatter =
+    DateTimeFormatter.ofPattern(
+        if (currentLocale().language == Locale.JAPANESE.language) "yyyy年M月" else "MMM yyyy",
+        currentLocale(),
+    )
 
 private object ExternalLinks {
     const val privacyPolicyUrl = "https://sites.google.com/view/setsuyaku-policy/%E3%83%9B%E3%83%BC%E3%83%A0"
@@ -131,7 +145,17 @@ fun SkipMoneyApp(
     Scaffold(
         contentWindowInsets = WindowInsets.statusBars,
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .navigationBarsPadding(),
+            ) { snackbarData ->
+                Snackbar(snackbarData = snackbarData)
+            }
+        },
         bottomBar = {
             if (currentScreen == ScreenDestination.Home) {
                 AdMobBanner()
@@ -461,7 +485,7 @@ private fun HomeScreen(
                 MonthlySavingsChart(
                     title = stringResource(
                         R.string.monthly_savings_chart_for_month,
-                        displayedMonth.format(monthlyChartTitleFormatter),
+                        displayedMonth.format(monthFormatter()),
                     ),
                     hint = stringResource(R.string.monthly_savings_chart_hint),
                     values = displayedMonthChartValues,
@@ -591,9 +615,12 @@ private fun HeroStatBlock(
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
     }
 }
@@ -1089,6 +1116,7 @@ private fun MonthlyCalendarSection(
     val selectedDate = selectedDay?.let { displayedMonth.atDay(it) }
     val selectedDayPurchases = selectedDate?.let { date -> purchasesByDate[date].orEmpty() }.orEmpty()
     val selectedDayTotal = selectedDayPurchases.sumOf { it.amountCents }
+    val shouldShowEmptyState = markedDays.isEmpty() && displayedMonth == YearMonth.now()
 
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -1116,7 +1144,7 @@ private fun MonthlyCalendarSection(
                     Text(stringResource(R.string.previous_month))
                 }
                 Text(
-                    text = displayedMonth.format(calendarMonthFormatter),
+                    text = displayedMonth.format(monthFormatter()),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1170,7 +1198,7 @@ private fun MonthlyCalendarSection(
                     }
                 }
             }
-            if (markedDays.isEmpty()) {
+            if (shouldShowEmptyState) {
                 InlineEmptyState(
                     title = stringResource(R.string.calendar_empty_title),
                     body = stringResource(R.string.calendar_empty_body),
@@ -1610,7 +1638,11 @@ private fun RecentPurchaseRow(
                 )
                 Text(
                     text = stringResource(R.string.recent_purchase_meta,
-                        formatRecentPurchaseDate(purchase.createdAt),
+                        formatRecentPurchaseDate(
+                            createdAt = purchase.createdAt,
+                            todayLabel = stringResource(R.string.today_label),
+                            yesterdayLabel = stringResource(R.string.yesterday_label),
+                        ),
                         moneyFormatter.formatMinorUnits(purchase.amountCents),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
@@ -1633,13 +1665,17 @@ private fun RecentPurchaseRow(
     }
 }
 
-private fun formatRecentPurchaseDate(createdAt: Long): String {
+private fun formatRecentPurchaseDate(
+    createdAt: Long,
+    todayLabel: String,
+    yesterdayLabel: String,
+): String {
     val zoneId = ZoneId.systemDefault()
     val purchaseDate = Instant.ofEpochMilli(createdAt).atZone(zoneId).toLocalDate()
     val today = LocalDate.now(zoneId)
     return when (purchaseDate) {
-        today -> "今日"
-        today.minusDays(1) -> "昨日"
-        else -> purchaseDate.format(recentPurchaseDateFormatter)
+        today -> todayLabel
+        today.minusDays(1) -> yesterdayLabel
+        else -> purchaseDate.format(recentPurchaseDateFormatter())
     }
 }

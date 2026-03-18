@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">節約ストリーク</string>
-    <string name="screen_subtitle">今日の節約を、続ける。</string>
+    <string name="screen_subtitle">小さな節約を、大きな習慣に。</string>
     <string name="onboarding_skip">スキップ</string>
     <string name="onboarding_next">次へ</string>
     <string name="onboarding_start">はじめる</string>
@@ -13,7 +13,7 @@
     <string name="settings">設定</string>
     <string name="back">戻る</string>
     <string name="total_saved">累計節約額</string>
-    <string name="skip_today">今日は買わなかった</string>
+    <string name="skip_today">今日の節約を記録する</string>
     <string name="share">シェア</string>
     <string name="share_chooser_title">シェア先を選択</string>
     <string name="share_text">節約ストリークで記録中！\n%1$s %2$d日継続中\n今月の節約額: %3$s\n累計節約額: %4$s</string>
@@ -37,7 +37,7 @@
     <string name="settings_notifications_enabled">通知のON/OFF</string>
     <string name="settings_reset_data">データ初期化</string>
     <string name="settings_about">アプリについて</string>
-    <string name="settings_about_body">節約の継続を記録し、日々の積み重ねを見える化するアプリです。</string>
+    <string name="settings_about_body">使わなかったお金を記録して、節約の積み重ねを見える化するアプリです。</string>
     <string name="settings_more">その他</string>
     <string name="privacy_policy">プライバシーポリシー</string>
     <string name="privacy_policy_hint">ブラウザでポリシーを開きます</string>
@@ -50,14 +50,14 @@
     <string name="change">変更</string>
     <string name="enabled">ON</string>
     <string name="disabled">OFF</string>
-    <string name="notification_time_hint">現在の通知時間: %1$s</string>
+    <string name="notification_time_hint">毎日の通知時刻: %1$s</string>
     <string name="notification_time_dialog_title">通知時間を変更</string>
     <string name="hour_label">時</string>
     <string name="minute_label">分</string>
     <string name="time_input_error">0〜23時、0〜59分で入力してください</string>
     <string name="notification_time_updated">通知時間を %1$s に変更しました</string>
     <string name="reset_data_confirm_title">データを初期化しますか？</string>
-    <string name="reset_data_confirm_body">節約記録、連続日数、合計金額が削除されます。</string>
+    <string name="reset_data_confirm_body">保存した節約記録、連続日数、合計金額を削除します。</string>
     <string name="reset">初期化</string>
     <string name="data_reset_completed">データを初期化しました</string>
     <string name="weekday_mon">月</string>
@@ -89,12 +89,12 @@
     <string name="recent_purchase_meta">%1$s %2$s</string>
     <string name="streak_days_value">%1$d日</string>
     <string name="motivational_streak">%1$s %2$d日継続中</string>
-    <string name="streak_supporting">今日も少しずつ、しっかり積み上げています</string>
+    <string name="streak_supporting">着実に積み上げています</string>
     <string name="hero_streak_label">🔥 連続日数</string>
     <string name="hero_monthly_saved_label">今月の節約額</string>
     <string name="hero_today_saved_value">💡 今日の節約 %1$s</string>
     <string name="hero_total_saved_label">💰 累計節約額</string>
-    <string name="settings_entry_hint">通知やデータ管理を確認できます</string>
+    <string name="settings_entry_hint">通知、データ、外部リンクを確認できます</string>
     <string name="celebration_streak_up">%1$s %2$d日継続中！</string>
     <string name="milestone_7_days">7日達成です。1週間の積み重ねができました</string>
     <string name="milestone_30_days">30日達成です。節約がしっかり習慣になってきました</string>
@@ -108,4 +108,6 @@
     <string name="widget_total_saved_value">累計節約額 %1$s</string>
     <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
     <string name="admob_banner_test_id">ca-app-pub-3940256099942544/9214589741</string>
+    <string name="today_label">今日</string>
+    <string name="yesterday_label">昨日</string>
 </resources>

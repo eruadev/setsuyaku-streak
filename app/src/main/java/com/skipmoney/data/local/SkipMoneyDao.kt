@@ -9,11 +9,16 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import java.time.ZoneId
 
 @Dao
 interface SkipMoneyDao {
     companion object {
         private const val TAG = "SkipMoneyDao"
+        private const val BRANCH_SAME_DAY = "same_day"
+        private const val BRANCH_INCREMENT = "increment"
+        private const val BRANCH_RESET_TO_1 = "reset_to_1"
     }
 
     @Query("SELECT * FROM skip_money_summary WHERE id = 1")
@@ -61,26 +66,33 @@ interface SkipMoneyDao {
             "recordSkippedPurchase: input label='$label', amountCents=$amountCents, createdAt=$createdAt, currentEpochDay=$currentEpochDay",
         )
         val currentSummary = getSummary()
-        val shouldIncrementStreak = currentSummary?.lastStreakEpochDay != currentEpochDay
-        val nextSummary = SkipMoneySummaryEntity(
-            currentStreakDays = (currentSummary?.currentStreakDays ?: 0) + 1,
+        val previousStreakDays = currentSummary?.currentStreakDays ?: 0
+        val lastStreakEpochDay = currentSummary?.lastStreakEpochDay
+        val createdAtLocalDate = Instant.ofEpochMilli(createdAt)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+        val difference = lastStreakEpochDay?.let { currentEpochDay - it }
+        val branchLabel = when (difference) {
+            0L -> BRANCH_SAME_DAY
+            1L -> BRANCH_INCREMENT
+            else -> BRANCH_RESET_TO_1
+        }
+        val nextStreakDays = when (branchLabel) {
+            BRANCH_SAME_DAY -> previousStreakDays
+            BRANCH_INCREMENT -> previousStreakDays + 1
+            else -> 1
+        }
+        val shouldIncrementStreak = branchLabel == BRANCH_INCREMENT
+        val summaryToPersist = SkipMoneySummaryEntity(
+            currentStreakDays = nextStreakDays,
             totalSavedCents = (currentSummary?.totalSavedCents ?: 0L) + amountCents,
             lastStreakEpochDay = currentEpochDay,
         )
 
-        val summaryToPersist = if (shouldIncrementStreak) {
-            nextSummary
-        } else {
-            nextSummary.copy(
-                currentStreakDays = currentSummary?.currentStreakDays ?: 0,
-                lastStreakEpochDay = currentSummary?.lastStreakEpochDay ?: currentEpochDay,
-            )
-        }
-
         upsertSummary(summaryToPersist)
         Log.d(
             TAG,
-            "recordSkippedPurchase: summaryBefore=${currentSummary?.totalSavedCents ?: 0L}, summaryAfter=${summaryToPersist.totalSavedCents}, shouldIncrementStreak=$shouldIncrementStreak",
+            "saveRecord: currentEpochDay=$currentEpochDay, lastStreakEpochDay=$lastStreakEpochDay, createdAtDate=$createdAtLocalDate, difference=$difference, branch=$branchLabel, savedStreak=${summaryToPersist.currentStreakDays}, totalSavedBefore=${currentSummary?.totalSavedCents ?: 0L}, totalSavedAfter=${summaryToPersist.totalSavedCents}, shouldIncrementStreak=$shouldIncrementStreak",
         )
         val insertedId = insertSkippedPurchase(
             SkippedPurchaseEntity(
@@ -95,6 +107,8 @@ interface SkipMoneyDao {
         )
         return RecordSkippedPurchaseResult(
             shouldIncrementStreak = shouldIncrementStreak,
+            currentStreakDays = summaryToPersist.currentStreakDays,
+            streakBranch = branchLabel,
             insertedId = insertedId,
             amountCents = amountCents,
             createdAt = createdAt,

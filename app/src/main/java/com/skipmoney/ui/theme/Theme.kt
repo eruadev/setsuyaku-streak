@@ -7,32 +7,36 @@ import androidx.compose.runtime.Composable
 
 private val LightColors =
     lightColorScheme(
-        primary = PineGreen,
-        onPrimary = WarmCream,
-        primaryContainer = Mist,
-        onPrimaryContainer = PineGreen,
-        secondary = MossGreen,
-        background = WarmCream,
+        primary = RoyalNavy,
+        onPrimary = WarmIvory,
+        primaryContainer = DeepNavy,
+        onPrimaryContainer = WarmIvory,
+        secondary = SoftGold,
+        onSecondary = RoyalNavy,
+        background = WarmIvory,
         surface = ColorTokens.Surface,
-        surfaceVariant = Mist,
+        surfaceVariant = PaleGold,
         onSurface = ColorTokens.OnSurface,
         onSurfaceVariant = ColorTokens.OnSurfaceVariant,
-        tertiary = Clay,
+        tertiary = SoftGold,
+        onTertiary = RoyalNavy,
     )
 
 private val DarkColors =
     darkColorScheme(
-        primary = Mist,
-        onPrimary = PineGreen,
-        primaryContainer = PineGreen,
-        onPrimaryContainer = WarmCream,
-        secondary = MossGreen,
+        primary = PaleGold,
+        onPrimary = RoyalNavy,
+        primaryContainer = RoyalNavy,
+        onPrimaryContainer = WarmIvory,
+        secondary = SoftGold,
+        onSecondary = RoyalNavy,
         background = ColorTokens.DarkBackground,
         surface = ColorTokens.DarkSurface,
         surfaceVariant = ColorTokens.DarkSurfaceVariant,
-        onSurface = WarmCream,
-        onSurfaceVariant = Mist,
-        tertiary = Clay,
+        onSurface = WarmIvory,
+        onSurfaceVariant = PaleGold,
+        tertiary = SoftGold,
+        onTertiary = RoyalNavy,
     )
 
 @Composable
@@ -48,10 +52,10 @@ fun SkipMoneyTheme(
 }
 
 private object ColorTokens {
-    val Surface = androidx.compose.ui.graphics.Color(0xFFFFFFFF)
-    val OnSurface = androidx.compose.ui.graphics.Color(0xFF183028)
-    val OnSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF597267)
-    val DarkBackground = androidx.compose.ui.graphics.Color(0xFF101614)
-    val DarkSurface = androidx.compose.ui.graphics.Color(0xFF17211E)
-    val DarkSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF23302B)
+    val Surface = androidx.compose.ui.graphics.Color(0xFFFFFCF6)
+    val OnSurface = androidx.compose.ui.graphics.Color(0xFF1B2330)
+    val OnSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF5F6671)
+    val DarkBackground = androidx.compose.ui.graphics.Color(0xFF0E1627)
+    val DarkSurface = androidx.compose.ui.graphics.Color(0xFF152033)
+    val DarkSurfaceVariant = androidx.compose.ui.graphics.Color(0xFF1C2940)
 }
