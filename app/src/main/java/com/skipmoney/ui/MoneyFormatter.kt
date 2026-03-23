@@ -20,6 +20,9 @@ class MoneyFormatter(
     fun formatMinorUnits(amountMinor: Long): String =
         formatter.format(BigDecimal.valueOf(amountMinor, minorUnitScale))
 
+    fun formatWholeUnits(amountWhole: Long): String =
+        formatter.format(BigDecimal.valueOf(amountWhole))
+
     companion object {
         fun forJapaneseYen(): MoneyFormatter =
             MoneyFormatter(

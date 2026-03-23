@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,13 +13,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +71,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +79,7 @@ import androidx.compose.ui.res.stringResource
 import com.skipmoney.R
 import com.skipmoney.data.SkippedPurchase
 import kotlinx.coroutines.flow.Flow
+import android.util.Log
 import java.time.Instant
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -135,6 +142,11 @@ fun SkipMoneyApp(
     var editingPurchase by remember { mutableStateOf<SkippedPurchase?>(null) }
     var deletingPurchase by remember { mutableStateOf<SkippedPurchase?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val navigateBackToHome = { currentScreen = ScreenDestination.Home }
+
+    BackHandler(enabled = currentScreen == ScreenDestination.Settings) {
+        navigateBackToHome()
+    }
 
     LaunchedEffect(messages) {
         messages.collect { message ->
@@ -158,7 +170,9 @@ fun SkipMoneyApp(
         },
         bottomBar = {
             if (currentScreen == ScreenDestination.Home) {
-                AdMobBanner()
+                BannerBottomBar {
+                    AdMobBanner()
+                }
             }
         },
     ) { innerPadding ->
@@ -178,7 +192,7 @@ fun SkipMoneyApp(
                 SettingsScreen(
                     state = state,
                     innerPadding = innerPadding,
-                    onBack = { currentScreen = ScreenDestination.Home },
+                    onBack = navigateBackToHome,
                     onToggleNotifications = onToggleNotifications,
                     onUpdateNotificationTime = onUpdateNotificationTime,
                     onResetData = onResetData,
@@ -217,6 +231,22 @@ fun SkipMoneyApp(
                 deletingPurchase = null
             },
         )
+    }
+}
+
+@Composable
+private fun BannerBottomBar(
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom),
+            ),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        content()
     }
 }
 
@@ -539,6 +569,13 @@ private fun HeroStatsCard(
     currentMonthSaved: String,
     totalSaved: String,
 ) {
+    LaunchedEffect(todaySaved, currentMonthSaved, totalSaved) {
+        Log.d(
+            "SkipMoneyScreen",
+            "HeroStatsCard: todaySaved='$todaySaved', currentMonthSaved='$currentMonthSaved', totalSaved='$totalSaved'",
+        )
+    }
+
     Surface(
         shape = RoundedCornerShape(30.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -578,14 +615,18 @@ private fun HeroStatsCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     HeroStatBlock(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(0.8f),
                         label = stringResource(R.string.hero_streak_label),
                         value = stringResource(R.string.streak_days_value, currentStreakDays),
                     )
                     HeroStatBlock(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1.2f),
                         label = stringResource(R.string.hero_total_saved_label),
                         value = totalSaved,
+                        valueStyle = MaterialTheme.typography.titleMedium,
+                        valueMaxLines = 2,
+                        valueSoftWrap = true,
+                        valueOverflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -603,6 +644,10 @@ private fun HeroStatBlock(
     modifier: Modifier = Modifier,
     label: String,
     value: String,
+    valueStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleLarge,
+    valueMaxLines: Int = 1,
+    valueSoftWrap: Boolean = false,
+    valueOverflow: TextOverflow = TextOverflow.Clip,
 ) {
     Column(
         modifier = modifier,
@@ -615,12 +660,13 @@ private fun HeroStatBlock(
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge,
+            style = valueStyle,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
+            maxLines = valueMaxLines,
+            softWrap = valueSoftWrap,
+            overflow = valueOverflow,
+            textAlign = TextAlign.Start,
         )
     }
 }
@@ -1218,7 +1264,7 @@ private fun MonthlyCalendarSection(
 private fun buildMonthlyChartValuesForMonth(
     purchases: List<SkippedPurchase>,
     displayedMonth: YearMonth,
-): List<Float> {
+): List<Long> {
     val zoneId = ZoneId.systemDefault()
     val dailyTotals = purchases
         .groupBy { purchase ->
@@ -1230,7 +1276,7 @@ private fun buildMonthlyChartValuesForMonth(
         .mapValues { (_, monthPurchases) -> monthPurchases.sumOf { it.amountCents } }
 
     return (1..displayedMonth.lengthOfMonth()).map { day ->
-        (dailyTotals[displayedMonth.atDay(day)] ?: 0L).toFloat()
+        dailyTotals[displayedMonth.atDay(day)] ?: 0L
     }
 }
 
@@ -1447,9 +1493,9 @@ private fun SkippedPurchaseInputDialog(
     var attemptedSave by remember { mutableStateOf(false) }
 
     val trimmedTitle = title.trim()
-    val parsedAmount = amount.trim().toBigDecimalOrNull()
+    val trimmedAmount = amount.trim()
     val isTitleValid = trimmedTitle.isNotEmpty()
-    val isAmountValid = parsedAmount != null && parsedAmount > java.math.BigDecimal.ZERO
+    val isAmountValid = parseWholeYenOrNull(trimmedAmount) != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1471,15 +1517,24 @@ private fun SkippedPurchaseInputDialog(
                 )
                 OutlinedTextField(
                     value = amount,
-                    onValueChange = { amount = it },
+                    onValueChange = { newValue ->
+                        val isDigitsOnly = newValue.all(Char::isDigit)
+                        val hasLeadingZero = newValue.length > 1 && newValue.startsWith('0')
+                        if (isDigitsOnly && !hasLeadingZero) {
+                            amount = newValue
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text(stringResource(R.string.amount_saved_label)) },
                     isError = attemptedSave && !isAmountValid,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    visualTransformation = WholeYenGroupingVisualTransformation,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     supportingText = {
                         if (attemptedSave && !isAmountValid) {
                             Text(stringResource(R.string.amount_invalid))
+                        } else {
+                            Text(stringResource(R.string.amount_integer_only_hint))
                         }
                     },
                 )
@@ -1490,7 +1545,7 @@ private fun SkippedPurchaseInputDialog(
                 onClick = {
                     attemptedSave = true
                     if (isTitleValid && isAmountValid) {
-                        onSave(trimmedTitle, amount.trim())
+                        onSave(trimmedTitle, trimmedAmount)
                     }
                 },
             ) {

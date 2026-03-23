@@ -61,6 +61,7 @@ interface SkipMoneyDao {
         createdAt: Long,
         currentEpochDay: Long,
     ): RecordSkippedPurchaseResult {
+        require(amountCents >= 1L) { "Amount must be at least 1 yen before inserting." }
         Log.d(
             TAG,
             "recordSkippedPurchase: input label='$label', amountCents=$amountCents, createdAt=$createdAt, currentEpochDay=$currentEpochDay",
@@ -121,6 +122,7 @@ interface SkipMoneyDao {
         label: String,
         amountCents: Long,
     ): Boolean {
+        require(amountCents >= 1L) { "Amount must be at least 1 yen before updating." }
         val existingPurchase = getSkippedPurchaseById(id) ?: return false
         val currentSummary = getSummary()
         val updatedTotalSaved = ((currentSummary?.totalSavedCents ?: 0L) - existingPurchase.amountCents + amountCents)

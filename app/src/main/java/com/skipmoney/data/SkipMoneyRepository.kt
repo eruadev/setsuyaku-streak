@@ -23,8 +23,9 @@ class SkipMoneyRepository(
     suspend fun recordSkippedPurchase(
         title: String,
         amountCents: Long,
-    ): RecordSkippedPurchaseResult =
-        skipMoneyDao.recordSkippedPurchase(
+    ): RecordSkippedPurchaseResult {
+        require(amountCents >= 1L) { "Amount must be at least 1 yen before persistence." }
+        return skipMoneyDao.recordSkippedPurchase(
             label = title,
             amountCents = amountCents,
             createdAt = System.currentTimeMillis(),
@@ -35,6 +36,7 @@ class SkipMoneyRepository(
                 "recordSkippedPurchase: incomingAmountCents=$amountCents, insertedId=${result.insertedId}, storedAmountCents=${result.amountCents}, createdAt=${result.createdAt}",
             )
         }
+    }
 
     suspend fun resetAllData() {
         skipMoneyDao.resetAllData()
@@ -44,8 +46,9 @@ class SkipMoneyRepository(
         id: Long,
         title: String,
         amountCents: Long,
-    ): Boolean =
-        skipMoneyDao.updateSkippedPurchase(
+    ): Boolean {
+        require(amountCents >= 1L) { "Amount must be at least 1 yen before persistence." }
+        return skipMoneyDao.updateSkippedPurchase(
             id = id,
             label = title,
             amountCents = amountCents,
@@ -55,6 +58,7 @@ class SkipMoneyRepository(
                 "updateSkippedPurchase: id=$id, amountCents=$amountCents, updated=$updated",
             )
         }
+    }
 
     suspend fun deleteSkippedPurchase(
         id: Long,

@@ -25,17 +25,25 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.skipmoney.R
 import java.time.LocalDate
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
+import kotlin.math.roundToLong
+
+private val chartMoneyFormatter = MoneyFormatter.forJapaneseYen()
 
 @Composable
 fun MonthlySavingsChart(
     title: String,
     hint: String,
-    values: List<Float>,
+    values: List<Long>,
     dayLabels: List<String>,
     modifier: Modifier = Modifier,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary.toArgb()
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
+    val plottedValues = values.map(::capChartYenValue)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -58,7 +66,7 @@ fun MonthlySavingsChart(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (values.all { it <= 0f }) {
+            if (plottedValues.all { it <= 0L }) {
                 InlineEmptyState(
                     title = androidx.compose.ui.res.stringResource(R.string.monthly_savings_chart_empty_title),
                     body = androidx.compose.ui.res.stringResource(R.string.monthly_savings_chart_empty_body),
@@ -86,10 +94,11 @@ fun MonthlySavingsChart(
                             setTextColor(axisColor)
                             gridColor = Color.TRANSPARENT
                             axisMinimum = 0f
+                            granularity = 1f
                             setDrawAxisLine(false)
                             valueFormatter = object : ValueFormatter() {
                                 override fun getFormattedValue(value: Float): String =
-                                    if (value == 0f) "0" else "¥${value.toInt()}"
+                                    chartMoneyFormatter.formatWholeUnits(value.roundToLong())
                             }
                         }
 
@@ -112,11 +121,11 @@ fun MonthlySavingsChart(
                     // and force the view to refresh/recreate when chart state changes.
                     Log.d(
                         "MonthlySavingsChart",
-                        "input: valuesCount=${values.size}, nonZeroCount=${values.count { it > 0f }}, labelsRange=${dayLabels.firstOrNull()}..${dayLabels.lastOrNull()} (values are yen)",
+                        "input: valuesCount=${values.size}, nonZeroCount=${plottedValues.count { it > 0L }}, labelsRange=${dayLabels.firstOrNull()}..${dayLabels.lastOrNull()} (values are yen)",
                     )
-                    val entries = values.mapIndexed { index, amount ->
+                    val entries = plottedValues.mapIndexed { index, amount ->
                         // The chart must render yen values, not cents.
-                        BarEntry((index + 1).toFloat(), amount)
+                        BarEntry((index + 1).toFloat(), amount.toFloat())
                     }
                     val dataSet = BarDataSet(entries, title).apply {
                         color = primaryColor
@@ -130,6 +139,7 @@ fun MonthlySavingsChart(
                             return if (day in 1..dayLabels.size) dayLabels[day - 1] else ""
                         }
                     }
+                    val yAxisConfig = calculateYAxisConfig(plottedValues.maxOrNull() ?: 0L)
                     chart.xAxis.axisMinimum = 0.5f
                     chart.xAxis.axisMaximum = dayLabels.size + 0.5f
                     // MPAndroidChart can keep a stale Y-axis max from the previous dataset,
@@ -137,7 +147,9 @@ fun MonthlySavingsChart(
                     chart.axisLeft.resetAxisMaximum()
                     chart.axisLeft.resetAxisMinimum()
                     chart.axisLeft.axisMinimum = 0f
-                    chart.axisLeft.axisMaximum = values.maxOrNull() ?: 0f
+                    chart.axisLeft.axisMaximum = yAxisConfig.axisMaximum
+                    chart.axisLeft.granularity = yAxisConfig.granularity
+                    chart.axisLeft.setLabelCount(yAxisConfig.labelCount, true)
                     chart.data = BarData(dataSet).apply {
                         barWidth = 0.78f
                     }
@@ -167,4 +179,74 @@ fun MonthlySavingsChart(
             )
         }
     }
+}
+
+private data class YAxisConfig(
+    val axisMaximum: Float,
+    val granularity: Float,
+    val labelCount: Int,
+)
+
+private const val CHART_Y_AXIS_CAP_YEN = 100_000_000L
+
+private fun capChartYenValue(value: Long): Long = value.coerceAtMost(CHART_Y_AXIS_CAP_YEN)
+
+private fun calculateYAxisConfig(maxValue: Long): YAxisConfig {
+    if (maxValue <= 0L) {
+        return YAxisConfig(
+            axisMaximum = 5f,
+            granularity = 1f,
+            labelCount = 6,
+        )
+    }
+
+    if (maxValue <= 5L) {
+        return YAxisConfig(
+            axisMaximum = 5f,
+            granularity = 1f,
+            labelCount = 6,
+        )
+    }
+
+    val roundedAxisMaximum = niceCeiling(maxValue)
+    val step = niceRoundedValue(ceil(roundedAxisMaximum / 5.0).toLong()).coerceAtLeast(1L)
+    val labelCount = (roundedAxisMaximum / step).toInt() + 1
+
+    return YAxisConfig(
+        axisMaximum = roundedAxisMaximum.toFloat(),
+        granularity = step.toFloat(),
+        labelCount = labelCount.coerceIn(3, 6),
+    )
+}
+
+private fun niceCeiling(value: Long): Long {
+    if (value <= 0L) return 1L
+
+    val exponent = floor(log10(value.toDouble())).toInt()
+    val magnitude = 10.0.pow(exponent)
+    val fraction = value / magnitude
+    val niceFraction = when {
+        fraction <= 1.0 -> 1.0
+        fraction <= 2.0 -> 2.0
+        fraction <= 5.0 -> 5.0
+        else -> 10.0
+    }
+
+    return (niceFraction * magnitude).toLong()
+}
+
+private fun niceRoundedValue(value: Long): Long {
+    if (value <= 0L) return 1L
+
+    val exponent = floor(log10(value.toDouble())).toInt()
+    val magnitude = 10.0.pow(exponent)
+    val fraction = value / magnitude
+    val niceFraction = when {
+        fraction < 1.5 -> 1.0
+        fraction < 3.0 -> 2.0
+        fraction < 7.0 -> 5.0
+        else -> 10.0
+    }
+
+    return (niceFraction * magnitude).toLong()
 }

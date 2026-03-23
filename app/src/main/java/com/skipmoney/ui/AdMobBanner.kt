@@ -24,7 +24,7 @@ fun AdMobBanner(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val adWidth = configuration.screenWidthDp.coerceAtLeast(320)
-    val adView = remember {
+    val adView = remember(context, adWidth) {
         AdView(context).apply {
             adUnitId = context.getString(R.string.admob_banner_test_id)
             setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(context, adWidth))

@@ -19,11 +19,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private val defaultMoneyText = MoneyFormatter.forJapaneseYen().formatMinorUnits(0)
 
 data class SkipMoneyUiState(
     val isLoading: Boolean = true,
@@ -31,12 +31,12 @@ data class SkipMoneyUiState(
     val currentStreakDays: Int = 0,
     val streakHeadline: String = "",
     val milestoneMessage: String? = null,
-    val todaySaved: String = "$0.00",
-    val totalSaved: String = "$0.00",
-    val currentMonthSaved: String = "$0.00",
+    val todaySaved: String = defaultMoneyText,
+    val totalSaved: String = defaultMoneyText,
+    val currentMonthSaved: String = defaultMoneyText,
     val calendarMonthLabel: String = "",
     val calendarMarkedDays: Set<Int> = emptySet(),
-    val monthlyChartValues: List<Float> = emptyList(),
+    val monthlyChartValues: List<Long> = emptyList(),
     val monthlyChartDayLabels: List<String> = emptyList(),
     val monthlyChartVersion: Int = 0,
     val notificationsEnabled: Boolean = true,
@@ -98,6 +98,15 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
                 currentMonthDailySavedCents = data.currentMonthDailySavedCents,
                 monthlyChartValues = monthlyChartValues,
             )
+            val todaySavedText = moneyFormatter.formatMinorUnits(data.todaySavedCents)
+            val totalSavedText = moneyFormatter.formatMinorUnits(data.totalSavedCents)
+            val currentMonthSavedText = moneyFormatter.formatMinorUnits(
+                data.currentMonthDailySavedCents.values.sum(),
+            )
+            Log.d(
+                TAG,
+                "heroAmounts: todaySaved='$todaySavedText', currentMonthSaved='$currentMonthSavedText', totalSaved='$totalSavedText', totalSavedRaw=${data.totalSavedCents}",
+            )
             SkipMoneyUiState(
                 isLoading = false,
                 showOnboarding = !settings.onboardingCompleted,
@@ -108,11 +117,9 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
                     data.currentStreakDays,
                 ),
                 milestoneMessage = milestoneMessageFor(data.currentStreakDays),
-                todaySaved = moneyFormatter.formatMinorUnits(data.todaySavedCents),
-                totalSaved = moneyFormatter.formatMinorUnits(data.totalSavedCents),
-                currentMonthSaved = moneyFormatter.formatMinorUnits(
-                    data.currentMonthDailySavedCents.values.sum(),
-                ),
+                todaySaved = todaySavedText,
+                totalSaved = totalSavedText,
+                currentMonthSaved = currentMonthSavedText,
                 calendarMonthLabel = today.format(monthFormatter()),
                 calendarMarkedDays = data.savingDates
                     .filter { it.year == today.year && it.month == today.month }
@@ -251,28 +258,15 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun parseAmountToCents(amountText: String): Long? {
         val rawInput = amountText.trim()
-        val amount = rawInput.toBigDecimalOrNull() ?: run {
-            Log.d(TAG, "parseAmountToCents: rawInput='$rawInput' -> invalid number")
+        val amount = parseWholeYenOrNull(rawInput) ?: run {
+            Log.d(TAG, "parseAmountToCents: rawInput='$rawInput' -> invalid whole yen input")
             return null
         }
-        if (amount <= java.math.BigDecimal.ZERO) return null
-        return try {
-            // Root cause note:
-            // The app is Japanese-first and the user enters yen, but this path previously
-            // multiplied by 100 as if the input were a 2-decimal currency. That hid itself in
-            // text formatting, while the chart exposed the mismatch. We now normalize to whole
-            // yen here and persist that value consistently end-to-end.
-            val normalizedYen = amount.setScale(0, RoundingMode.HALF_UP)
-            val storedAmount = normalizedYen.longValueExact()
-            Log.d(
-                TAG,
-                "parseAmountToCents: rawInput='$rawInput', parsedBigDecimal=$amount, normalizedYen=$normalizedYen, storedAmountCents=$storedAmount",
-            )
-            storedAmount
-        } catch (_: ArithmeticException) {
-            Log.d(TAG, "parseAmountToCents: rawInput='$rawInput' -> overflow/invalid exact long")
-            null
-        }
+        Log.d(
+            TAG,
+            "parseAmountToCents: rawInput='$rawInput', storedAmountCents=$amount",
+        )
+        return amount
     }
 
     private fun formatNotificationTime(
@@ -289,7 +283,7 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     private fun buildMonthlyChartValues(
         currentMonthDailySavedCents: Map<Int, Long>,
         daysInMonth: Int,
-    ): List<Float> =
+    ): List<Long> =
         (1..daysInMonth).map { day ->
             // Stored values are normalized to whole yen even though the legacy field name still says cents.
             amountMinorToChartYen(currentMonthDailySavedCents[day] ?: 0L)
@@ -298,7 +292,7 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     private fun logChartComputation(
         month: String,
         currentMonthDailySavedCents: Map<Int, Long>,
-        monthlyChartValues: List<Float>,
+        monthlyChartValues: List<Long>,
     ) {
         Log.d(TAG, "chartComputation: month=$month, dailyMap=$currentMonthDailySavedCents")
         Log.d(TAG, "chartComputation: chartEntriesCount=${monthlyChartValues.size}")
@@ -317,5 +311,5 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.value = toUiState(data, settings)
     }
 
-    private fun amountMinorToChartYen(amountCents: Long): Float = amountCents.toFloat()
+    private fun amountMinorToChartYen(amountCents: Long): Long = amountCents
 }
