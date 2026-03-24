@@ -9,6 +9,7 @@ import com.skipmoney.data.SkipMoneyData
 import com.skipmoney.data.SkipMoneyRepository
 import com.skipmoney.data.SkippedPurchase
 import com.skipmoney.data.local.SkipMoneyDatabase
+import com.skipmoney.data.local.TotalSavedOverflowException
 import com.skipmoney.notifications.DailyReminderScheduler
 import com.skipmoney.settings.ReminderSettings
 import com.skipmoney.settings.ReminderSettingsRepository
@@ -24,6 +25,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val defaultMoneyText = MoneyFormatter.forJapaneseYen().formatMinorUnits(0)
+internal const val MAX_SAVING_AMOUNT = 1_000_000_000_000L
+
+internal fun isSavingAmountWithinLimit(amount: Long): Boolean = amount <= MAX_SAVING_AMOUNT
 
 data class SkipMoneyUiState(
     val isLoading: Boolean = true,
@@ -142,6 +146,10 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     ) {
         val normalizedTitle = title.trim()
         val amountCents = parseAmountToCents(amountText) ?: return
+        if (!isSavingAmountWithinLimit(amountCents)) {
+            messages.tryEmit(appContext.getString(R.string.amount_too_large))
+            return
+        }
         Log.d(
             TAG,
             "recordSkippedPurchase: rawInputAmount='$amountText', normalizedTitle='$normalizedTitle', parsedAmountCents=$amountCents",
@@ -149,10 +157,15 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
         if (normalizedTitle.isEmpty()) return
 
         viewModelScope.launch {
-            val result = repository.recordSkippedPurchase(
-                title = normalizedTitle,
-                amountCents = amountCents,
-            )
+            val result = try {
+                repository.recordSkippedPurchase(
+                    title = normalizedTitle,
+                    amountCents = amountCents,
+                )
+            } catch (_: TotalSavedOverflowException) {
+                messages.emit(appContext.getString(R.string.amount_too_large))
+                return@launch
+            }
             Log.d(
                 TAG,
                 "recordSkippedPurchase: insertedId=${result.insertedId}, amountCents=${result.amountCents}, createdAt=${result.createdAt}",
@@ -223,14 +236,23 @@ class SkipMoneyViewModel(application: Application) : AndroidViewModel(applicatio
     ) {
         val normalizedTitle = title.trim()
         val amountCents = parseAmountToCents(amountText) ?: return
+        if (!isSavingAmountWithinLimit(amountCents)) {
+            messages.tryEmit(appContext.getString(R.string.amount_too_large))
+            return
+        }
         if (normalizedTitle.isEmpty()) return
 
         viewModelScope.launch {
-            val updated = repository.updateSkippedPurchase(
-                id = id,
-                title = normalizedTitle,
-                amountCents = amountCents,
-            )
+            val updated = try {
+                repository.updateSkippedPurchase(
+                    id = id,
+                    title = normalizedTitle,
+                    amountCents = amountCents,
+                )
+            } catch (_: TotalSavedOverflowException) {
+                messages.emit(appContext.getString(R.string.amount_too_large))
+                return@launch
+            }
             if (!updated) return@launch
             refreshUiState()
             SkipMoneyWidgetUpdater.updateAll(appContext)

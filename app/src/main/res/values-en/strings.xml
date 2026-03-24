@@ -83,6 +83,7 @@
     <string name="title_required">Enter a title</string>
     <string name="amount_integer_only_hint">Enter a whole yen amount</string>
     <string name="amount_invalid">Enter 1 yen or more</string>
+    <string name="amount_too_large">Amount is too large</string>
     <string name="no_entries_yet">No records yet</string>
     <string name="empty_state_hint">Tap the today savings button to add your first savings record.</string>
     <string name="streak_already_counted">Today has already been counted for your streak</string>

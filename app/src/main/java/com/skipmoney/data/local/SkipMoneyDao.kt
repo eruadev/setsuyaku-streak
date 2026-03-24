@@ -12,6 +12,33 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.time.ZoneId
 
+internal class TotalSavedOverflowException : IllegalStateException("totalSavedCents overflow")
+
+internal fun checkedAddTotalSaved(
+    currentTotalSaved: Long,
+    amountToAdd: Long,
+): Long {
+    require(amountToAdd >= 0L) { "Amount to add must be non-negative." }
+    if (currentTotalSaved > Long.MAX_VALUE - amountToAdd) {
+        throw TotalSavedOverflowException()
+    }
+    return currentTotalSaved + amountToAdd
+}
+
+internal fun checkedReplaceTotalSavedAmount(
+    currentTotalSaved: Long,
+    previousAmount: Long,
+    newAmount: Long,
+): Long {
+    require(previousAmount >= 0L) { "Previous amount must be non-negative." }
+    require(newAmount >= 0L) { "New amount must be non-negative." }
+    val adjustedTotal = (currentTotalSaved - previousAmount).coerceAtLeast(0L)
+    return checkedAddTotalSaved(
+        currentTotalSaved = adjustedTotal,
+        amountToAdd = newAmount,
+    )
+}
+
 @Dao
 interface SkipMoneyDao {
     companion object {
@@ -84,9 +111,13 @@ interface SkipMoneyDao {
             else -> 1
         }
         val shouldIncrementStreak = branchLabel == BRANCH_INCREMENT
+        val updatedTotalSaved = checkedAddTotalSaved(
+            currentTotalSaved = currentSummary?.totalSavedCents ?: 0L,
+            amountToAdd = amountCents,
+        )
         val summaryToPersist = SkipMoneySummaryEntity(
             currentStreakDays = nextStreakDays,
-            totalSavedCents = (currentSummary?.totalSavedCents ?: 0L) + amountCents,
+            totalSavedCents = updatedTotalSaved,
             lastStreakEpochDay = currentEpochDay,
         )
 
@@ -125,8 +156,11 @@ interface SkipMoneyDao {
         require(amountCents >= 1L) { "Amount must be at least 1 yen before updating." }
         val existingPurchase = getSkippedPurchaseById(id) ?: return false
         val currentSummary = getSummary()
-        val updatedTotalSaved = ((currentSummary?.totalSavedCents ?: 0L) - existingPurchase.amountCents + amountCents)
-            .coerceAtLeast(0L)
+        val updatedTotalSaved = checkedReplaceTotalSavedAmount(
+            currentTotalSaved = currentSummary?.totalSavedCents ?: 0L,
+            previousAmount = existingPurchase.amountCents,
+            newAmount = amountCents,
+        )
         currentSummary?.let { summary ->
             upsertSummary(summary.copy(totalSavedCents = updatedTotalSaved))
         }

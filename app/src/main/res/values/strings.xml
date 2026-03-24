@@ -83,6 +83,7 @@
     <string name="title_required">タイトルを入力してください</string>
     <string name="amount_integer_only_hint">整数の円金額を入力してください</string>
     <string name="amount_invalid">1円以上を入力してください</string>
+    <string name="amount_too_large">金額が大きすぎます</string>
     <string name="no_entries_yet">まだ記録がありません</string>
     <string name="empty_state_hint">『今日は買わなかった』を押して最初の節約を記録しましょう</string>
     <string name="streak_already_counted">今日は連続日数に反映済みです</string>
